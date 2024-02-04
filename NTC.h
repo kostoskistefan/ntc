@@ -1,48 +1,36 @@
-#ifndef NTC_h
-#define NTC_h
+#ifndef NTC_H
+#define NTC_H
 
 #include <Arduino.h>
+#include <cstdint>
 
-#ifdef ARDUINO_ARCH_STM32
-	#define NTC_ADC_RESOLUTION 4095.0
-#else
-	#define NTC_ADC_RESOLUTION 1023.0
-#endif
+#define NTC_ADC_RESOLUTION 1024.0
+#define CONST_3435_OVER_298 11.52685
 
 class NTC
 {
-private:
-    uint8_t pin;
+    private:
+        uint8_t pin;
 
-public:
-    NTC(uint8_t _pin) : pin(_pin) {}
+    public:
+        NTC(uint8_t _pin) : pin(_pin) {}
 
-    void begin()
-    {
-        pinMode(pin, INPUT);
-    }
+        void begin()
+        {
+            pinMode(this->pin, INPUT);
+        }
 
-    int16_t getCelsius()
-    {
-        #ifndef NTC_INVERTED
-
-            float Resistance = 10000 / (NTC_ADC_RESOLUTION / analogRead(pin) - 1.0);
-            float steinhart = Resistance / 10000.0;
-            steinhart = log(steinhart);
-            steinhart /= 3435.0;
-            steinhart += 1.0 / 298;
-            steinhart = 1.0 / steinhart;
-            return steinhart - 273;
-
-        #else
-
-            static float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
-            float R = 10000 * (NTC_ADC_RESOLUTION / analogRead(pin) - 1.0);
-            R = log(R);
-            return (1.0 / (c1 + c2 * R + c3 * R * R * R)) - 273;
-
-        #endif
-    }
+        int16_t getCelsius()
+        {
+            #ifndef NTC_INVERTED
+                const uint16_t adc_value = analogRead(this->pin);
+                return (3435.0 / (log(adc_value / (NTC_ADC_RESOLUTION - adc_value)) + CONST_3435_OVER_298)) - 273;
+            #else
+                static float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
+                float R = log(10000 * ((NTC_ADC_RESOLUTION / analogRead(pin)) - 1.0));
+                return (1.0 / (c1 + c2 * R + c3 * R * R * R)) - 273;
+            #endif
+        }
 };
 
-#endif
+#endif // NTC_H
